@@ -1,0 +1,392 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><title>晚餐轉盤</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<style>
+/* 版面：左邊轉盤、右邊篩選與結果；手機直向堆疊。燈籠紅為唯一強調色，轉盤分段用夜市攤位招牌的八種色。 */
+:root{
+  --bg:#f5f6fa; --surface:#ffffff; --fg:#1b1f2e; --muted:#5b6275; --line:#dde0ea;
+  --accent:#d2402b; --accent-fg:#ffffff; --chip:#eceef5; --chip-on:#1b1f2e; --chip-on-fg:#ffffff;
+  --pointer:#1b1f2e; --hub:#ffffff; --rim:#1b1f2e;
+  --font:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12131f; --surface:#1c1e2e; --fg:#eef0f8; --muted:#a2a8bd; --line:#2e3147;
+  --accent:#ef5a43; --accent-fg:#ffffff; --chip:#2a2d42; --chip-on:#eef0f8; --chip-on-fg:#12131f;
+  --pointer:#eef0f8; --hub:#1c1e2e; --rim:#eef0f8; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12131f; --surface:#1c1e2e; --fg:#eef0f8; --muted:#a2a8bd; --line:#2e3147;
+  --accent:#ef5a43; --accent-fg:#ffffff; --chip:#2a2d42; --chip-on:#eef0f8; --chip-on-fg:#12131f;
+  --pointer:#eef0f8; --hub:#1c1e2e; --rim:#eef0f8; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:16px;line-height:1.5;
+  padding-block:24px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1020px;margin:0 auto}
+header{margin-bottom:20px}
+h1{font-size:clamp(26px,5vw,36px);font-weight:900;letter-spacing:.02em;line-height:1.2}
+header p{color:var(--muted);margin-top:4px}
+.grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:760px){.grid{grid-template-columns:minmax(0,1fr)}}
+.stagelabel{text-align:center;font-weight:900;font-size:20px;min-height:32px;margin-bottom:8px;color:var(--accent)}
+.stage{position:relative;width:min(100%,480px);margin:0 auto;aspect-ratio:1}
+canvas{width:100%;height:100%;display:block}
+.pointer{position:absolute;left:50%;top:-6px;transform:translateX(-50%);width:0;height:0;
+  border-left:15px solid transparent;border-right:15px solid transparent;border-top:30px solid var(--pointer);z-index:2;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))}
+.spin{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:23%;aspect-ratio:1;border-radius:50%;border:0;
+  background:var(--accent);color:var(--accent-fg);font:900 clamp(18px,4.4vw,26px)/1 var(--font);cursor:pointer;z-index:3;
+  box-shadow:0 0 0 6px var(--hub),0 6px 16px rgba(0,0,0,.28)}
+.spin:disabled{opacity:.6;cursor:default}
+.spin:focus-visible,.chip:focus-visible,.btn:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px}
+.panel+.panel{margin-top:16px}
+.label{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.08em;margin-bottom:8px;display:block}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:0;background:var(--chip);color:var(--fg);padding:8px 14px;border-radius:999px;font:500 15px var(--font);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--chip-on);color:var(--chip-on-fg)}
+.row{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:16px}
+.row>*{min-width:0}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.price-line{display:flex;justify-content:space-between;align-items:baseline}
+.price-line b{font-size:20px;font-variant-numeric:tabular-nums}
+input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);font:16px var(--font)}
+.field{margin-top:16px}
+.hint{font-size:13px;color:var(--muted);margin-top:6px}
+.result{min-height:150px}
+.result .tag{display:inline-block;font-size:13px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--chip);color:var(--muted)}
+.result h2{font-size:clamp(24px,5vw,32px);font-weight:900;line-height:1.25;margin:10px 0 4px;overflow-wrap:anywhere}
+.result .meta{color:var(--muted)}
+.result .price{font-size:30px;font-weight:900;color:var(--accent);margin-top:8px;font-variant-numeric:tabular-nums}
+.rows{display:flex;flex-direction:column;gap:10px;margin:10px 0 4px}
+.rows .r{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:8px}
+.rows .r b{overflow-wrap:anywhere}
+.rows .r small{display:block;color:var(--muted);font-size:13px}
+.rows .r .p{font-variant-numeric:tabular-nums;font-weight:700}
+.result .empty{color:var(--muted)}
+.btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:10px 16px;border-radius:10px;font:700 15px var(--font);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.hist{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+.hist li{display:flex;justify-content:space-between;gap:12px;font-size:15px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.hist li span:first-child{overflow-wrap:anywhere}
+.hist li span:last-child{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.foot{color:var(--muted);font-size:13px;margin-top:24px}
+</style>
+<div class="wrap">
+  <header>
+    <h1>今晚吃什麼？轉盤決定</h1>
+    <p>東華夜市 <span id="stores">53</span> 家攤位、<span id="total">618</span> 個品項，選好條件就轉。</p>
+  </header>
+  <div class="grid">
+    <section>
+      <div class="stagelabel" id="stageLabel">&nbsp;</div>
+      <div class="stage">
+        <div class="pointer" aria-hidden="true"></div>
+        <canvas id="wheel" width="960" height="960" role="img" aria-label="晚餐轉盤"></canvas>
+        <button class="spin" id="spin" type="button">轉！</button>
+      </div>
+      <div class="btns" style="justify-content:center">
+        <button class="btn" id="reshuffle" type="button">換一批選項</button>
+      </div>
+    </section>
+    <section>
+      <div class="panel result" id="result" aria-live="polite">
+        <span class="label">結果</span>
+        <p class="empty">按中間的「轉！」開始。</p>
+      </div>
+      <div class="panel">
+        <span class="label">轉什麼</span>
+        <div class="chips" id="modes">
+          <button class="chip" type="button" data-mode="single" aria-pressed="true">單品</button>
+          <button class="chip" type="button" data-mode="set" aria-pressed="false">套餐（主餐＋小吃＋飲料）</button>
+        </div>
+        <div id="singleOpts">
+        <span class="label" style="margin-top:16px">想吃哪一類</span>
+        <div class="chips" id="groups">
+          <button class="chip" type="button" data-g="main" aria-pressed="true">主餐</button>
+          <button class="chip" type="button" data-g="side" aria-pressed="true">小吃</button>
+          <button class="chip" type="button" data-g="dessert" aria-pressed="true">甜點</button>
+          <button class="chip" type="button" data-g="drink" aria-pressed="true">飲料</button>
+        </div>
+        <div class="field">
+          <div class="price-line"><label class="label" for="price" style="margin:0">單品價格上限</label><b id="priceOut">150 元</b></div>
+          <input id="price" type="range" min="30" max="300" step="10" value="150">
+        </div>
+        </div>
+        <div id="setOpts" class="field" hidden>
+          <div class="price-line"><label class="label" for="budget" style="margin:0">套餐預算上限</label><b id="budgetOut">200 元</b></div>
+          <input id="budget" type="range" min="100" max="400" step="10" value="200">
+          <p class="hint">一份套餐 = 1 個主餐 + 1 個小吃或甜點 + 1 杯飲料，三樣來自不同攤位，總價不超過預算。</p>
+        </div>
+        <div class="field">
+          <label class="label" for="avoid">不要出現（用逗號分開）</label>
+          <input id="avoid" type="text" placeholder="例如：牛, 蝦, 辣" autocomplete="off">
+          <p class="hint" id="count"></p>
+        </div>
+      </div>
+      <div class="panel">
+        <span class="label">最近轉到</span>
+        <ul class="hist" id="hist"><li><span style="color:var(--muted)">還沒有紀錄</span><span></span></li></ul>
+      </div>
+    </section>
+  </div>
+  <p class="foot">價格以現場為準。</p>
+  <p class="foot" id="admin" hidden>菜單來源：<span id="src">內建菜單</span><br><label class="btn" style="display:inline-block;cursor:pointer">換成其他菜單檔（.csv）<input id="csvFile" type="file" accept=".csv,text/csv" hidden></label></p>
+</div>
+<script>
+const EMBEDDED = [["main",1,"YO’S 義大利麵x漢堡","經典花東靈魂堡",150],["main",1,"YO’S 義大利麵x漢堡","熔岩花生醬堡",150],["main",1,"YO’S 義大利麵x漢堡","煙燻 BBQ 堡",150],["main",1,"YO’S 義大利麵x漢堡","白醬義大利麵",150],["main",1,"YO’S 義大利麵x漢堡","紅醬義大利麵",150],["main",1,"YO’S 義大利麵x漢堡","青醬義大利麵",150],["dessert",2,"傳統豆花，古早味冰淇淋，黑糖珍珠鮮奶茶","古早味冰淇淋",50],["dessert",2,"傳統豆花，古早味冰淇淋，黑糖珍珠鮮奶茶","傳統豆花",50],["drink",2,"傳統豆花，古早味冰淇淋，黑糖珍珠鮮奶茶","冰淇淋紅茶",50],["drink",2,"傳統豆花，古早味冰淇淋，黑糖珍珠鮮奶茶","鮮奶茶",50],["drink",2,"傳統豆花，古早味冰淇淋，黑糖珍珠鮮奶茶","珍珠鮮奶",60],["drink",2,"傳統豆花，古早味冰淇淋，黑糖珍珠鮮奶茶","冰鎮冬瓜紅茶",30],["drink",2,"傳統豆花，古早味冰淇淋，黑糖珍珠鮮奶茶","冬瓜檸檬紅茶",40],["main",3,"陷食工作室","風味燻烤牛胸起司風味烤餅 ROAST BEEF BRISKET SCONES",230],["main",3,"陷食工作室","莫雷辣烤雞 (可不辣)起司風味烤餅 MOREY ROAST CHICKEN SCONES",200],["main",3,"陷食工作室","風味燻烤牛胸墨西哥塔可(兩片) ROAST BEEF BRISKET TACOS",180],["main",3,"陷食工作室","風味燻烤牛胸墨西哥塔可(三片) ROAST BEEF BRISKET TACOS",260],["main",3,"陷食工作室","莫雷辣烤雞 (可不辣)墨西哥塔可(三片) MOREY ROAST CHICKEN TACOS",180],["main",3,"陷食工作室","莫雷辣烤雞 (可不辣)墨西哥塔可(兩片) MOREY ROAST CHICKEN TACOS",260],["main",3,"陷食工作室","番茄肉醬美墨熱狗堡",100],["main",3,"陷食工作室","起司狂熱美墨熱狗堡",100],["main",3,"陷食工作室","綜合美墨熱狗堡",120],["side",3,"陷食工作室","炸薯條 FRENCH FRIES",50],["main",4,"禾渝壽司","豆皮握壽司 (2貫)",30],["main",4,"禾渝壽司","黑胡椒牛肉握壽司 (2貫)",30],["main",4,"禾渝壽司","蟹棒握壽司 (2貫)",40],["main",4,"禾渝壽司","鮮蝦握壽司 (2貫)",40],["main",4,"禾渝壽司","玉子燒握壽司 (2貫)",40],["main",4,"禾渝壽司","熟握綜合 (8貫)",100],["main",4,"禾渝壽司","甜蝦握壽司 (2貫)",60],["main",4,"禾渝壽司","肉鬆軍艦壽司 (2貫)",30],["main",4,"禾渝壽司","玉米沙拉軍艦壽司 (2貫)",30],["main",4,"禾渝壽司","蝦卵軍艦壽司 (2貫)",40],["main",4,"禾渝壽司","起司鮮蝦炙燒壽司 (5貫)",190],["main",4,"禾渝壽司","炙燒鮭魚炙燒壽司 (5貫)",200],["main",4,"禾渝壽司","焦糖鮭魚炙燒壽司 (5貫)",200],["main",4,"禾渝壽司","起司鮭魚炙燒壽司 (5貫)",200],["main",4,"禾渝壽司","海鹽鮭魚炙燒壽司 (5貫)",200],["main",4,"禾渝壽司","炙燒鮭魚丼(附湯)",350],["main",4,"禾渝壽司","焦糖鮭魚丼(附湯)",350],["side",4,"禾渝壽司","味噌湯",20],["side",4,"禾渝壽司","玉子燒",60],["dessert",5,"凍心炸冰淇淋","貓山王榴槤 Musang King Durian",120],["dessert",5,"凍心炸冰淇淋","百香芒果優格 Passion Fruit Mango Yogurt",80],["dessert",5,"凍心炸冰淇淋","紅玉厚奶 Ruby Velvet Milk Tea",80],["dessert",5,"凍心炸冰淇淋","香菜花生 Cilantro Peanuts",80],["dessert",5,"凍心炸冰淇淋","蘋香藍莓 Apple Blueberry",80],["dessert",5,"凍心炸冰淇淋","可可朱古力 Cacao Chocolate",70],["dessert",5,"凍心炸冰淇淋","經典香草 Classic Vanilla",60],["dessert",6,"Ms莉甜點","經典不敗提拉米蘇",120],["dessert",6,"Ms莉甜點","桂花蜜鮮奶麻糬",80],["dessert",6,"Ms莉甜點","黑糖珍珠鮮奶麻糬",80],["dessert",6,"Ms莉甜點","芒果奶酪",60],["dessert",6,"Ms莉甜點","OREO奶酪",60],["dessert",6,"Ms莉甜點","焦糖烤布蕾",60],["dessert",6,"Ms莉甜點","新鮮水果茶",60],["dessert",6,"Ms莉甜點","水蜜桃冰茶",60],["dessert",6,"Ms莉甜點","紫米紅豆西米露鮮奶",60],["main",7,"丞丞蔬食","辣炒年糕(小)",60],["main",7,"丞丞蔬食","辣炒年糕(大)",100],["main",7,"丞丞蔬食","韓式飯捲",120],["main",7,"丞丞蔬食","香菇油飯(小)",60],["main",7,"丞丞蔬食","香菇油飯(大)",100],["main",7,"丞丞蔬食","行天宮冬粉(小)",50],["main",7,"丞丞蔬食","行天宮冬粉(大)",80],["main",8,"古早味潤餅捲","原味口味潤餅 local flavor",50],["main",8,"古早味潤餅捲","辣椒口味潤餅 spicy flavor",50],["main",8,"古早味潤餅捲","蒜末口味潤餅 garlic flavor",50],["main",8,"古早味潤餅捲","芥末口味潤餅 wasabi flavor",50],["main",8,"古早味潤餅捲","綜合口味潤餅 mixed flavor (辣、芥、蒜全加)",50],["main",8,"古早味潤餅捲","無糖花生潤餅 sugarless flavor",50],["main",8,"古早味潤餅捲","全素口味潤餅 vegan flavor",50],["main",8,"古早味潤餅捲","蛋奶素口味潤餅 lacto-ovo vegetarian flavor",50],["side",9,"馬娟快炒（大腸包小腸）","雞皮",20],["side",9,"馬娟快炒（大腸包小腸）","米血",20],["side",9,"馬娟快炒（大腸包小腸）","熱狗",20],["side",9,"馬娟快炒（大腸包小腸）","青椒",20],["side",9,"馬娟快炒（大腸包小腸）","三串(雞屁股+雞翅+肉串)",100],["main",9,"馬娟快炒（大腸包小腸）","大腸包小腸一組",80],["side",9,"馬娟快炒（大腸包小腸）","香腸一支",40],["side",9,"馬娟快炒（大腸包小腸）","糯米腸一支",40],["main",9,"馬娟快炒（大腸包小腸）","烤魷魚一串",150],["side",10,"183炸雞","香雞排",80],["side",10,"183炸雞","鹹酥雞",60],["side",10,"183炸雞","雞腿",60],["side",10,"183炸雞","雞翅一隻",40],["side",10,"183炸雞","雞翅三隻",100],["side",10,"183炸雞","甜不辣",50],["side",10,"183炸雞","花枝丸",50],["side",10,"183炸雞","薯條",50],["side",10,"183炸雞","熱狗棒",35],["side",10,"183炸雞","熱狗",35],["drink",11,"妙不可言","芒果牛奶",60],["drink",11,"妙不可言","木瓜牛奶",60],["drink",11,"妙不可言","酪梨牛奶",60],["drink",11,"妙不可言","草莓牛奶",60],["drink",11,"妙不可言","香蕉牛奶",60],["drink",11,"妙不可言","火龍果香蕉",60],["main",12,"基隆營養三明治","原味 Original",60],["main",12,"基隆營養三明治","鮪魚 Tuna",65],["main",12,"基隆營養三明治","玉米 Corn",65],["main",12,"基隆營養三明治","起士 Cheese",65],["side",13,"飯飯雞翅","飯飯雞翅",80],["side",14,"一起胖麵包","甜甜圈",15],["side",14,"一起胖麵包","椰子麵包",20],["side",14,"一起胖麵包","紅豆麵包",20],["side",14,"一起胖麵包","花生麵包",20],["side",14,"一起胖麵包","芋頭麵包",20],["side",14,"一起胖麵包","地瓜麵包",25],["side",14,"一起胖麵包","奶酥葡萄(原味)",25],["side",14,"一起胖麵包","克林姆麵包",25],["side",14,"一起胖麵包","貝殼螺仔(奶油餡)",25],["side",14,"一起胖麵包","貝殼螺仔(巧克力奶油)",25],["side",14,"一起胖麵包","蛋糕麵包",25],["side",14,"一起胖麵包","墨西哥巧克力",30],["side",14,"一起胖麵包","草莓小菠蘿(2入)",25],["side",14,"一起胖麵包","藍莓起酥派(2入)",25],["side",14,"一起胖麵包","蘋果起酥派(2入)",25],["side",14,"一起胖麵包","原味可頌(3入/包)",30],["side",14,"一起胖麵包","丹麥椰子",30],["side",14,"一起胖麵包","丹麥蜜豆",30],["side",14,"一起胖麵包","起酥奶酥",30],["side",14,"一起胖麵包","起酥肉鬆",30],["side",14,"一起胖麵包","千層蛋塔",45],["side",14,"一起胖麵包","芋泥金沙(鹹蛋黃)",30],["side",14,"一起胖麵包","香芋麻糬雙色",30],["side",14,"一起胖麵包","黑糖巧克力菠蘿",30],["side",14,"一起胖麵包","波蘿布丁",30],["side",14,"一起胖麵包","椰香手絲包",30],["side",14,"一起胖麵包","大理石巧克力(4入)",30],["side",14,"一起胖麵包","牛角小布利(4入)",30],["side",14,"一起胖麵包","黃金牛角(原味)",30],["side",14,"一起胖麵包","羅宋(鹽奶油)",45],["side",14,"一起胖麵包","托斯卡尼厚片",30],["side",14,"一起胖麵包","肉鬆沙拉麵包",25],["side",14,"一起胖麵包","起司培根堡",25],["side",14,"一起胖麵包","蔥肉鬆",30],["side",14,"一起胖麵包","白醬燻雞",30],["side",14,"一起胖麵包","全麥熱狗",30],["side",14,"一起胖麵包","青蔥厚燒餅",30],["side",14,"一起胖麵包","蔥捲肉鬆",30],["side",14,"一起胖麵包","蒜味熱狗",30],["side",14,"一起胖麵包","蒜味培根",30],["side",14,"一起胖麵包","青醬燻雞",35],["side",14,"一起胖麵包","全麥小比薩",45],["side",14,"一起胖麵包","咖啡核桃巧克力",45],["side",14,"一起胖麵包","歐式核桃乳酪",45],["side",14,"一起胖麵包","歐式核桃蔓越莓",45],["side",14,"一起胖麵包","巧克力橘皮",50],["side",14,"一起胖麵包","德式布雷結",35],["side",14,"一起胖麵包","鹽奶油捲(鹹奶油)",35],["side",14,"一起胖麵包","鹽奶油捲(黑糖麻糬)",35],["side",14,"一起胖麵包","葡萄吐司",70],["side",14,"一起胖麵包","紅豆吐司",70],["side",14,"一起胖麵包","奶酥吐司",70],["side",14,"一起胖麵包","芋頭吐司",70],["side",14,"一起胖麵包","火腿起司吐司",70],["side",14,"一起胖麵包","南瓜吐司",80],["side",14,"一起胖麵包","抹茶蜜豆吐司",80],["side",14,"一起胖麵包","巧克力吐司",80],["side",14,"一起胖麵包","椰香奶酥(特)",55],["side",14,"一起胖麵包","葡萄吐司(特)",55],["side",14,"一起胖麵包","火腿起司(特)",55],["side",14,"一起胖麵包","紅豆吐司(特)",55],["side",14,"一起胖麵包","原味三角蛋糕",25],["side",14,"一起胖麵包","巧克力三角蛋糕",25],["side",14,"一起胖麵包","草莓三角蛋糕",25],["side",14,"一起胖麵包","檸檬小蛋糕",25],["side",14,"一起胖麵包","古早味蛋糕(6吋)",60],["side",14,"一起胖麵包","火腿起司蛋糕(6吋)",75],["side",15,"小羊爹地章魚燒","原味(小6顆)",60],["side",15,"小羊爹地章魚燒","原味(大9顆)",85],["side",15,"小羊爹地章魚燒","海苔(小6顆)",60],["side",15,"小羊爹地章魚燒","海苔(大9顆)",85],["side",15,"小羊爹地章魚燒","芥末(小6顆)",60],["side",15,"小羊爹地章魚燒","芥末(大9顆)",85],["side",15,"小羊爹地章魚燒","蒜香(小6顆)",60],["side",15,"小羊爹地章魚燒","蒜香(大9顆)",85],["side",15,"小羊爹地章魚燒","香辣(小6顆)",60],["side",15,"小羊爹地章魚燒","香辣(大9顆)",85],["side",15,"小羊爹地章魚燒","咖哩(小6顆)",60],["side",15,"小羊爹地章魚燒","咖哩(大9顆)",85],["side",15,"小羊爹地章魚燒","五香(小6顆)",60],["side",15,"小羊爹地章魚燒","五香(大9顆)",85],["side",15,"小羊爹地章魚燒","孜然(小6顆)",60],["side",15,"小羊爹地章魚燒","孜然(大9顆)",85],["side",15,"小羊爹地章魚燒","韓式泡菜風味粉(小6顆)",60],["side",15,"小羊爹地章魚燒","韓式泡菜風味粉(大9顆)",85],["side",15,"小羊爹地章魚燒","檸檬椒鹽(小6顆)",60],["side",15,"小羊爹地章魚燒","檸檬椒鹽(大9顆)",85],["side",15,"小羊爹地章魚燒","玉米濃湯風味粉(小6顆)",60],["side",15,"小羊爹地章魚燒","玉米濃湯風味粉(大9顆)",85],["side",15,"小羊爹地章魚燒","科學麵風味粉(小6顆)",60],["side",15,"小羊爹地章魚燒","科學麵風味粉(大9顆)",85],["side",15,"小羊爹地章魚燒","甘梅粉(小6顆)",60],["side",15,"小羊爹地章魚燒","甘梅粉(大9顆)",85],["side",15,"小羊爹地章魚燒","墨西哥風味粉(小6顆)",60],["side",15,"小羊爹地章魚燒","墨西哥風味粉(大9顆)",85],["main",16,"鴨隊堡","烤鴨潛艇堡",180],["side",16,"鴨隊堡","秘製辣椒醬",170],["side",16,"鴨隊堡","蜜汁五香豆干",100],["dessert",17,"腸腸可麗餅","奶油果醬可麗餅",50],["dessert",17,"腸腸可麗餅","巧克力果醬可麗餅",50],["dessert",17,"腸腸可麗餅","草莓果醬可麗餅",50],["dessert",17,"腸腸可麗餅","花生果醬可麗餅",50],["dessert",17,"腸腸可麗餅","煉乳果醬可麗餅",50],["dessert",17,"腸腸可麗餅","蜂蜜果醬可麗餅",50],["dessert",17,"腸腸可麗餅","焦糖果醬可麗餅",50],["dessert",17,"腸腸可麗餅","奶酥果醬可麗餅",50],["dessert",17,"腸腸可麗餅","抹茶果醬可麗餅",50],["dessert",17,"腸腸可麗餅","芝麻果醬可麗餅",50],["dessert",17,"腸腸可麗餅","香蒜果醬可麗餅",50],["dessert",17,"腸腸可麗餅","金沙果醬可麗餅",60],["dessert",17,"腸腸可麗餅","金沙肉鬆果醬可麗餅",70],["main",17,"腸腸可麗餅","火腿生菜可麗餅",70],["main",17,"腸腸可麗餅","鮪魚生菜可麗餅",70],["main",17,"腸腸可麗餅","燻雞生菜可麗餅",70],["main",17,"腸腸可麗餅","德國香腸可麗餅",70],["main",17,"腸腸可麗餅","起司玉米生菜可麗餅",70],["main",17,"腸腸可麗餅","肉鬆玉米生菜可麗餅",70],["main",17,"腸腸可麗餅","大總匯生菜可麗餅",100],["dessert",17,"腸腸可麗餅","煉乳香蕉可麗餅",60],["dessert",17,"腸腸可麗餅","蜂蜜香蕉可麗餅",60],["dessert",17,"腸腸可麗餅","焦糖香蕉可麗餅",60],["dessert",17,"腸腸可麗餅","花生香蕉可麗餅",60],["dessert",17,"腸腸可麗餅","奶酥香蕉可麗餅",60],["dessert",17,"腸腸可麗餅","抹茶香蕉可麗餅",60],["dessert",17,"腸腸可麗餅","芝麻香蕉可麗餅",60],["dessert",17,"腸腸可麗餅","巧克力香蕉可麗餅",60],["dessert",17,"腸腸可麗餅","起司可麗餅",60],["dessert",17,"腸腸可麗餅","奶油起司可麗餅",60],["dessert",17,"腸腸可麗餅","奶酥起司可麗餅",60],["dessert",17,"腸腸可麗餅","藍莓起司可麗餅",60],["dessert",17,"腸腸可麗餅","花生起司可麗餅",60],["dessert",17,"腸腸可麗餅","煉乳起司可麗餅",60],["dessert",17,"腸腸可麗餅","蜂蜜起司可麗餅",60],["dessert",17,"腸腸可麗餅","焦糖起司可麗餅",60],["dessert",17,"腸腸可麗餅","香蒜起司可麗餅",60],["dessert",17,"腸腸可麗餅","芝麻起司可麗餅",60],["dessert",17,"腸腸可麗餅","巧克力起司可麗餅",60],["dessert",17,"腸腸可麗餅","金沙起司可麗餅",70],["dessert",17,"腸腸可麗餅","起司雙重奏可麗餅",70],["dessert",17,"腸腸可麗餅","奶油棉花糖可麗餅",60],["dessert",17,"腸腸可麗餅","芝麻棉花糖可麗餅",60],["dessert",17,"腸腸可麗餅","草莓棉花糖可麗餅",60],["dessert",17,"腸腸可麗餅","藍莓棉花糖可麗餅",60],["dessert",17,"腸腸可麗餅","蜂蜜棉花糖可麗餅",60],["dessert",17,"腸腸可麗餅","花生棉花糖可麗餅",60],["dessert",17,"腸腸可麗餅","煉乳棉花糖可麗餅",60],["dessert",17,"腸腸可麗餅","抹茶棉花糖可麗餅",60],["dessert",17,"腸腸可麗餅","奶酥棉花糖可麗餅",60],["dessert",17,"腸腸可麗餅","焦糖棉花糖可麗餅",60],["dessert",17,"腸腸可麗餅","巧克力棉花糖可麗餅",60],["dessert",17,"腸腸可麗餅","奶油焦糖卡士達可麗餅",100],["dessert",17,"腸腸可麗餅","芝麻焦糖卡士達可麗餅",100],["dessert",17,"腸腸可麗餅","花生焦糖卡士達可麗餅",100],["dessert",17,"腸腸可麗餅","奶酥焦糖卡士達可麗餅",100],["dessert",17,"腸腸可麗餅","抹茶焦糖卡士達可麗餅",100],["dessert",17,"腸腸可麗餅","巧克力焦糖卡士達可麗餅",100],["main",18,"夜光餐車","尼信黃金魚蛋",200],["dessert",18,"夜光餐車","原味花見糰子 / 一組2支",100],["dessert",18,"夜光餐車","煉乳花見糰子 / 一組2支",100],["dessert",18,"夜光餐車","起司花見糰子 / 一組2支",100],["dessert",18,"夜光餐車","醬油花見糰子 / 一組2支",100],["main",18,"夜光餐車","鮭魚鮮蝦手握(鮭魚4+鮮蝦5)",260],["main",18,"夜光餐車","綜合鮮蝦手握(起司+鮮蝦) 10貫",200],["main",18,"夜光餐車","7L大蝦手握(起司+鮮蝦) 6貫",200],["main",19,"遛食刈包 x 有壹點甜雞蛋糕","控肉刈包",60],["main",19,"遛食刈包 x 有壹點甜雞蛋糕","花生粉刈包",60],["main",19,"遛食刈包 x 有壹點甜雞蛋糕","酸菜刈包",60],["main",19,"遛食刈包 x 有壹點甜雞蛋糕","香菜刈包",60],["main",19,"遛食刈包 x 有壹點甜雞蛋糕","嗆辣哇沙比刈包",70],["main",19,"遛食刈包 x 有壹點甜雞蛋糕","黃金泡菜豬肉片刈包",80],["dessert",19,"遛食刈包 x 有壹點甜雞蛋糕","原味雞蛋糕",50],["dessert",19,"遛食刈包 x 有壹點甜雞蛋糕","濃情巧克力",60],["dessert",19,"遛食刈包 x 有壹點甜雞蛋糕","爆漿卡士達",60],["dessert",19,"遛食刈包 x 有壹點甜雞蛋糕","鹹香起司",60],["dessert",19,"遛食刈包 x 有壹點甜雞蛋糕","顆粒花生",60],["dessert",19,"遛食刈包 x 有壹點甜雞蛋糕","牽絲起司",65],["side",20,"神隱野食烤物","烤蔬食",35],["side",20,"神隱野食烤物","烤糯米腸",40],["side",20,"神隱野食烤物","巧克力香腸",45],["side",20,"神隱野食烤物","刺蔥香腸",50],["side",20,"神隱野食烤物","烤七里香",30],["side",20,"神隱野食烤物","烤雞皮",30],["side",20,"神隱野食烤物","烤甜不辣",30],["main",20,"神隱野食烤物","烤肉夾土司",65],["side",21,"秘醬滷味 花蓮店","秘醬乾麵",30],["side",21,"秘醬滷味 花蓮店","手工米血",25],["side",21,"秘醬滷味 花蓮店","百頁豆腐",25],["side",21,"秘醬滷味 花蓮店","滷炸豆腐",25],["side",21,"秘醬滷味 花蓮店","秘製鴨血",25],["side",21,"秘醬滷味 花蓮店","滷芋頭粿",30],["side",21,"秘醬滷味 花蓮店","滷炸蛋",25],["side",21,"秘醬滷味 花蓮店","鳥蛋",25],["side",21,"秘醬滷味 花蓮店","滷蛋白",30],["side",21,"秘醬滷味 花蓮店","素雞",30],["side",21,"秘醬滷味 花蓮店","大黑豆干",30],["side",21,"秘醬滷味 花蓮店","秘醬花生",40],["side",21,"秘醬滷味 花蓮店","素腰花",20],["side",21,"秘醬滷味 花蓮店","黑輪",20],["side",21,"秘醬滷味 花蓮店","小豆干",25],["side",21,"秘醬滷味 花蓮店","蒟蒻捲",25],["side",21,"秘醬滷味 花蓮店","雞肉鑫鑫腸",25],["side",21,"秘醬滷味 花蓮店","旗津大黑輪片",25],["side",21,"秘醬滷味 花蓮店","爆漿魚包蛋",25],["side",21,"秘醬滷味 花蓮店","豬肉貢丸",30],["side",21,"秘醬滷味 花蓮店","滷炸豆包",30],["side",21,"秘醬滷味 花蓮店","甜不辣",30],["side",21,"秘醬滷味 花蓮店","滷肉圓",35],["side",21,"秘醬滷味 花蓮店","海帶",20],["side",21,"秘醬滷味 花蓮店","蔥油米腸",30],["side",21,"秘醬滷味 花蓮店","雞肉丸",30],["side",21,"秘醬滷味 花蓮店","雞爪",30],["side",21,"秘醬滷味 花蓮店","豬皮",25],["side",21,"秘醬滷味 花蓮店","鴨肝",30],["side",21,"秘醬滷味 花蓮店","鴨胗子",30],["side",21,"秘醬滷味 花蓮店","豬頭皮",40],["side",21,"秘醬滷味 花蓮店","鴨翅",35],["side",21,"秘醬滷味 花蓮店","鴨心",45],["side",21,"秘醬滷味 花蓮店","脆腸",50],["side",21,"秘醬滷味 花蓮店","豬腱肉",60],["side",21,"秘醬滷味 花蓮店","豬耳朵",60],["side",21,"秘醬滷味 花蓮店","滷大腸",70],["side",21,"秘醬滷味 花蓮店","菜頭",20],["side",21,"秘醬滷味 花蓮店","香菇",35],["side",21,"秘醬滷味 花蓮店","蓮藕片",35],["side",21,"秘醬滷味 花蓮店","黑木耳",35],["side",21,"秘醬滷味 花蓮店","花椰菜",35],["side",21,"秘醬滷味 花蓮店","玉米筍",35],["side",21,"秘醬滷味 花蓮店","筊白筍",35],["side",21,"秘醬滷味 花蓮店","龍鬚菜",35],["side",21,"秘醬滷味 花蓮店","小黃瓜",35],["side",21,"秘醬滷味 花蓮店","金針菇",35],["side",21,"秘醬滷味 花蓮店","杏鮑菇",35],["side",21,"秘醬滷味 花蓮店","四季豆",35],["side",21,"秘醬滷味 花蓮店","高麗菜",35],["main",22,"寧記蔥肉餅","蔥肉餅",50],["main",22,"寧記蔥肉餅","蔥油餅",40],["main",22,"寧記蔥肉餅","塔香蔥肉餅",60],["drink",23,"泰哥Tiger泰式手沖奶茶","傳統手標紅茶",40],["drink",23,"泰哥Tiger泰式手沖奶茶","泰式手沖奶茶",60],["drink",23,"泰哥Tiger泰式手沖奶茶","泰式手沖奶綠",60],["dessert",24,"集時sweet love","芒果盒子蛋糕",120],["dessert",24,"集時sweet love","草莓盒子蛋糕",120],["dessert",24,"集時sweet love","葡萄盒子蛋糕",100],["dessert",24,"集時sweet love","藍莓盒子蛋糕",100],["dessert",24,"集時sweet love","提拉米蘇 手鏟大塊 (經典原味)",130],["dessert",24,"集時sweet love","提拉米蘇 手鏟大塊 (宇治抹茶)",150],["dessert",24,"集時sweet love","提拉米蘇 手鏟大塊 (OREO)",150],["dessert",24,"集時sweet love","提拉米蘇 手鏟大塊 (草莓撲滿)",180],["dessert",24,"集時sweet love","提拉米蘇 手鏟大塊 (芒果)",180],["dessert",24,"集時sweet love","提拉米蘇 手鏟大塊 (藍莓)",160],["dessert",24,"集時sweet love","提拉米蘇 手鏟大塊 (檸檬)",160],["dessert",24,"集時sweet love","提拉米蘇 盒裝小塊 (經典原味 含咖啡)",90],["dessert",24,"集時sweet love","提拉米蘇 盒裝小塊 (宇治抹茶)",100],["dessert",24,"集時sweet love","提拉米蘇 盒裝小塊 (OREO)",100],["dessert",24,"集時sweet love","提拉米蘇 盒裝小塊 (季節水果)",120],["side",25,"宗哥爆漿雞肉卷","爆漿雞肉卷一隻",60],["side",25,"宗哥爆漿雞肉卷","爆漿雞肉卷兩隻",100],["side",25,"宗哥爆漿雞肉卷","蔥燒雞腿排",80],["dessert",26,"Mola café","冰淇淋一球",80],["dessert",26,"Mola café","冰淇淋兩球",150],["dessert",26,"Mola café","冰淇淋一杯綜合",110],["main",27,"抓ㄇㄚˇ·蔬餅","玉米蔬餅",90],["main",27,"抓ㄇㄚˇ·蔬餅","皮蛋蔬餅",90],["main",27,"抓ㄇㄚˇ·蔬餅","培根蔬餅",90],["main",27,"抓ㄇㄚˇ·蔬餅","豬肉蔬餅",100],["main",28,"手作披薩","經典瑪格麗特披薩 Margherita (蔬食)",200],["main",28,"手作披薩","夏威夷蝦仁",250],["main",28,"手作披薩","義式臘腸",220],["main",28,"手作披薩","德式香腸",220],["main",29,"肚肚扁巴西餡餅","番茄牛肉巴西餡餅",100],["main",29,"肚肚扁巴西餡餅","洋蔥豬肉巴西餡餅",80],["main",29,"肚肚扁巴西餡餅","乳酪雞絲巴西餡餅",90],["main",29,"肚肚扁巴西餡餅","熱帶蝦泥巴西餡餅",100],["main",29,"肚肚扁巴西餡餅","起司三兄弟巴西餡餅 (素)",100],["main",29,"肚肚扁巴西餡餅","比薩巴西餡餅 (素)",80],["dessert",29,"肚肚扁巴西餡餅","香蕉肉桂巴西餡餅 (素)",70],["drink",29,"肚肚扁巴西餡餅","巴西瓜拿納汽水",60],["drink",29,"肚肚扁巴西餡餅","超級C印度櫻桃汁",140],["drink",29,"肚肚扁巴西餡餅","巴西卡波莉亞調酒",250],["drink",29,"肚肚扁巴西餡餅","巴西莓雪酪",110],["main",30,"煥味私烤","梅花豬套餐",200],["main",30,"煥味私烤","雞腿排套餐",200],["dessert",31,"胖皮紫米芋泥糕","紫米芋泥糕",80],["dessert",31,"胖皮紫米芋泥糕","純芋泥球 (四顆一盒)",70],["dessert",31,"胖皮紫米芋泥糕","乳酪芋泥球 (單顆)",50],["dessert",31,"胖皮紫米芋泥糕","炸芋頭餅一顆",35],["dessert",31,"胖皮紫米芋泥糕","炸芋頭餅三顆",100],["main",32,"來碗麵線","大腸麵線",70],["main",32,"來碗麵線","肉羹麵線 (大)",70],["main",32,"來碗麵線","綜合麵線 (大)",70],["main",32,"來碗麵線","清麵線 (大)",50],["main",32,"來碗麵線","香腸糯米腸",80],["side",33,"舞骨鳳爪","舞骨鳳爪 (一盒)",110],["side",33,"舞骨鳳爪","舞骨鳳爪 (任選兩盒)",200],["dessert",34,"墊肚肚糖餅","韓式糖餅 (黑糖+肉桂+花生堅果)",50],["dessert",34,"墊肚肚糖餅","香甜可可",50],["dessert",34,"墊肚肚糖餅","抹茶歐蕾",50],["dessert",34,"墊肚肚糖餅","跳跳糖餅冰淇淋 (搭配香草冰淇淋)",100],["dessert",34,"墊肚肚糖餅","黑糖珍珠",60],["dessert",34,"墊肚肚糖餅","鹹甜起司",60],["drink",35,"順路來壹唄","來壹唄紅茶",30],["drink",35,"順路來壹唄","檸檬紅茶",40],["drink",35,"順路來壹唄","珍珠紅茶",40],["drink",35,"順路來壹唄","冬瓜紅茶",40],["drink",35,"順路來壹唄","椰果紅茶",40],["drink",35,"順路來壹唄","布丁紅茶",40],["drink",35,"順路來壹唄","百香紅茶",40],["drink",35,"順路來壹唄","梅子紅茶",40],["drink",35,"順路來壹唄","牛奶紅茶",60],["drink",35,"順路來壹唄","雙Q紅茶",50],["drink",35,"順路來壹唄","珍珠布丁紅茶",50],["drink",35,"順路來壹唄","珍珠檸檬紅茶",50],["drink",35,"順路來壹唄","來壹唄奶茶",40],["drink",35,"順路來壹唄","黑糖奶茶",50],["drink",35,"順路來壹唄","布丁奶茶",50],["drink",35,"順路來壹唄","椰果奶茶",50],["drink",35,"順路來壹唄","波霸奶茶",50],["drink",35,"順路來壹唄","雙Q奶茶",60],["drink",35,"順路來壹唄","黑糖珍珠奶茶",60],["drink",35,"順路來壹唄","牛奶珍珠紅茶",70],["drink",35,"順路來壹唄","黑糖珍珠鮮奶",80],["drink",35,"順路來壹唄","來壹唄冬瓜",30],["drink",35,"順路來壹唄","冬瓜紅茶",30],["drink",35,"順路來壹唄","冬瓜綠茶",30],["drink",35,"順路來壹唄","冬瓜奶茶",40],["drink",35,"順路來壹唄","冬瓜布丁",40],["drink",35,"順路來壹唄","冬瓜檸檬",40],["drink",35,"順路來壹唄","冬瓜珍珠",40],["drink",35,"順路來壹唄","冬瓜椰果",40],["drink",35,"順路來壹唄","冬瓜牛奶",60],["drink",35,"順路來壹唄","梅子可樂",40],["drink",35,"順路來壹唄","珍珠可樂",40],["drink",35,"順路來壹唄","來壹唄綠茶",30],["drink",35,"順路來壹唄","檸檬綠茶",40],["drink",35,"順路來壹唄","珍珠綠茶",40],["drink",35,"順路來壹唄","金桔綠茶",40],["drink",35,"順路來壹唄","百香綠茶",40],["drink",35,"順路來壹唄","多多綠茶",50],["drink",35,"順路來壹唄","珍珠奶綠",50],["drink",35,"順路來壹唄","百香椰綠茶",50],["drink",35,"順路來壹唄","布丁奶綠",50],["drink",35,"順路來壹唄","椰果奶綠",50],["drink",35,"順路來壹唄","百香雙Q",50],["drink",35,"順路來壹唄","牛奶綠茶",60],["drink",35,"順路來壹唄","奶綠",40],["drink",35,"順路來壹唄","布丁綠茶",40],["drink",35,"順路來壹唄","椰果綠茶",40],["drink",35,"順路來壹唄","梅子綠茶",40],["side",36,"蔣笑笑鹹酥雞","炸螃蟹(秤重一兩)",40],["side",36,"蔣笑笑鹹酥雞","鹹酥雞(小)",60],["side",36,"蔣笑笑鹹酥雞","鹹酥雞(大)",100],["side",36,"蔣笑笑鹹酥雞","溪蝦",100],["side",36,"蔣笑笑鹹酥雞","一口蟹",100],["side",36,"蔣笑笑鹹酥雞","蝦猴",100],["side",36,"蔣笑笑鹹酥雞","雞排",100],["side",36,"蔣笑笑鹹酥雞","三角骨",60],["side",36,"蔣笑笑鹹酥雞","雞皮",40],["side",36,"蔣笑笑鹹酥雞","雞屁股",40],["side",36,"蔣笑笑鹹酥雞","米血糕",40],["side",36,"蔣笑笑鹹酥雞","甜不辣",40],["side",36,"蔣笑笑鹹酥雞","百葉豆腐",40],["side",36,"蔣笑笑鹹酥雞","炸時蔬",60],["side",36,"蔣笑笑鹹酥雞","大熱狗",30],["side",36,"蔣笑笑鹹酥雞","薯條",40],["side",37,"夜市王-蛤蜊波特","最強蛤蜊燒",150],["side",37,"夜市王-蛤蜊波特","蚵南騎山豬(部落風範)",150],["side",37,"夜市王-蛤蜊波特","泰式綜合海鮮",150],["side",37,"夜市王-蛤蜊波特","爆漿雞腿捲一隻",70],["side",37,"夜市王-蛤蜊波特","爆漿雞腿捲三隻",200],["side",37,"夜市王-蛤蜊波特","爆漿雞腿捲十隻",600],["side",37,"夜市王-蛤蜊波特","部落鹹豬肉",150],["side",37,"夜市王-蛤蜊波特","玫瑰鹽牛小排",150],["side",37,"夜市王-蛤蜊波特","小卷蹦蹦跳",150],["side",37,"夜市王-蛤蜊波特","饗吃手剝蝦",150],["side",37,"夜市王-蛤蜊波特","極焰干貝燒",150],["main",37,"夜市王-蛤蜊波特","阿婆LV滷肉飯",150],["side",37,"夜市王-蛤蜊波特","蛤蜊海鮮魚湯",150],["side",37,"夜市王-蛤蜊波特","隱藏版海味",150],["dessert",38,"阿胖菇/串串雞蛋糕","經典原味 Original",50],["dessert",38,"阿胖菇/串串雞蛋糕","Oreo餅乾 Oreo",65],["dessert",38,"阿胖菇/串串雞蛋糕","乳酪起司 Cheese",65],["dessert",38,"阿胖菇/串串雞蛋糕","香草卡士達 Vanilla Custard",65],["side",38,"阿胖菇/串串雞蛋糕","杏鮑菇(小)",70],["side",38,"阿胖菇/串串雞蛋糕","杏鮑菇(大)",130],["side",38,"阿胖菇/串串雞蛋糕","香菇(小)",70],["side",38,"阿胖菇/串串雞蛋糕","香菇(大)",130],["side",38,"阿胖菇/串串雞蛋糕","金針菇(小)",70],["side",38,"阿胖菇/串串雞蛋糕","金針菇(大)",130],["side",38,"阿胖菇/串串雞蛋糕","綜合菇(包含杏鮑菇 + 香菇 + 金針菇)",130],["side",39,"彩虹臭薯條","牛奶起司醬(小)",80],["side",39,"彩虹臭薯條","牛奶起司醬(大)",120],["side",39,"彩虹臭薯條","泰式酸甜醬(小)",70],["side",39,"彩虹臭薯條","泰式酸甜醬(大)",100],["side",39,"彩虹臭薯條","蜂蜜芥末醬(小)",70],["side",39,"彩虹臭薯條","蜂蜜芥末醬(大)",100],["side",39,"彩虹臭薯條","椒麻辣醬(小)",70],["side",39,"彩虹臭薯條","椒麻辣醬(大)",100],["side",39,"彩虹臭薯條","蒜蓉醬(小)",70],["side",39,"彩虹臭薯條","蒜蓉醬(大)",100],["side",39,"彩虹臭薯條","甘梅粉(小)",70],["side",39,"彩虹臭薯條","甘梅粉(大)",100],["side",39,"彩虹臭薯條","椒鹽粉(小)",70],["side",39,"彩虹臭薯條","椒鹽粉(大)",100],["dessert",40,"糕中狀元糕","任選3顆",60],["dessert",40,"糕中狀元糕","任選6顆",100],["dessert",41,"熊厚雞蛋糕·手工菜燕","原味(無包餡)",50],["dessert",41,"熊厚雞蛋糕·手工菜燕","牛奶巧克力",70],["dessert",41,"熊厚雞蛋糕·手工菜燕","奶油卡士達",70],["dessert",41,"熊厚雞蛋糕·手工菜燕","鐵觀音卡士達",70],["dessert",41,"熊厚雞蛋糕·手工菜燕","紅豆牛奶",70],["dessert",41,"熊厚雞蛋糕·手工菜燕","雙重起司",75],["dessert",41,"熊厚雞蛋糕·手工菜燕","OREO餅乾",75],["dessert",41,"熊厚雞蛋糕·手工菜燕","特製鮪魚",80],["dessert",41,"熊厚雞蛋糕·手工菜燕","乳酪卡士達",80],["dessert",41,"熊厚雞蛋糕·手工菜燕","黑糖麻糬卡士達",80],["dessert",41,"熊厚雞蛋糕·手工菜燕","手工菜燕一個",40],["dessert",41,"熊厚雞蛋糕·手工菜燕","手工菜燕三個",100],["dessert",41,"熊厚雞蛋糕·手工菜燕","原味手作鮮奶酪",50],["dessert",41,"熊厚雞蛋糕·手工菜燕","紅豆泥手作鮮奶酪",60],["dessert",41,"熊厚雞蛋糕·手工菜燕","經典原味純純手工生食級奶酥醬",200],["dessert",41,"熊厚雞蛋糕·手工菜燕","靜岡抹茶純純手工生食級奶酥醬",230],["dessert",41,"熊厚雞蛋糕·手工菜燕","濃郁可可純純手工生食級奶酥醬",230],["dessert",41,"熊厚雞蛋糕·手工菜燕","經典原味手作奶酥",60],["dessert",41,"熊厚雞蛋糕·手工菜燕","濃郁可可手作奶酥",60],["dessert",41,"熊厚雞蛋糕·手工菜燕","靜岡抹茶手作奶酥",60],["dessert",41,"熊厚雞蛋糕·手工菜燕","綜合(可任選兩種口味)手作奶酥",65],["drink",41,"熊厚雞蛋糕·手工菜燕","紅茶",40],["drink",41,"熊厚雞蛋糕·手工菜燕","冬瓜茶",40],["drink",41,"熊厚雞蛋糕·手工菜燕","冷泡茶",40],["main",42,"吉爾泰","打拋豬肉飯",120],["main",42,"吉爾泰","泰式炒泡麵",120],["main",42,"吉爾泰","帕泰 (泰式炒河粉)",120],["side",42,"吉爾泰","泰式涼拌木瓜",110],["drink",42,"吉爾泰","泰式奶茶",65],["dessert",42,"吉爾泰","摩摩渣渣",65],["side",43,"科科排骨酥","排骨酥 (小份)",100],["side",43,"科科排骨酥","排骨酥 (中份)",150],["side",43,"科科排骨酥","排骨酥 (大份)",200],["side",43,"科科排骨酥","排骨酥 (特大)",300],["dessert",44,"宇閎冰糖葫蘆","草莓糖葫蘆",50],["dessert",44,"宇閎冰糖葫蘆","蕃茄蜜餞糖葫蘆",35],["dessert",44,"宇閎冰糖葫蘆","綠葡萄糖葫蘆",40],["dessert",44,"宇閎冰糖葫蘆","全蕃茄糖葫蘆",35],["dessert",44,"宇閎冰糖葫蘆","橘子糖葫蘆",40],["dessert",44,"宇閎冰糖葫蘆","藍莓糖葫蘆",40],["side",45,"上全臭豆腐大腸麵線","臭豆腐",70],["side",45,"上全臭豆腐大腸麵線","素食臭豆腐 (不加蒜泥)",70],["side",45,"上全臭豆腐大腸麵線","大腸麵線",60],["side",45,"上全臭豆腐大腸麵線","清麵線 (不加大腸)",50],["side",45,"上全臭豆腐大腸麵線","鹹豬肉臭豆腐",100],["side",45,"上全臭豆腐大腸麵線","鹹豬肉",150],["dessert",46,"貓棒棒咖啡 ChatBon café","原味比利時鬆餅",60],["dessert",46,"貓棒棒咖啡 ChatBon café","巧克力比利時鬆餅",65],["drink",46,"貓棒棒咖啡 ChatBon café","紅茶",40],["drink",46,"貓棒棒咖啡 ChatBon café","奶茶",50],["drink",46,"貓棒棒咖啡 ChatBon café","黑咖啡",60],["side",47,"花媽原烤","花媽鹹豬肉",150],["side",47,"花媽原烤","醬烤魷魚",150],["side",47,"花媽原烤","大腸包小腸",80],["side",47,"花媽原烤","大腸包鹹豬肉",80],["side",47,"花媽原烤","香腸",40],["side",47,"花媽原烤","米腸",40],["dessert",48,"魔法豬日式脆皮雞蛋糕","雞蛋糕小份 (5顆)",60],["dessert",48,"魔法豬日式脆皮雞蛋糕","雞蛋糕大份 (9顆)",100],["dessert",48,"魔法豬日式脆皮雞蛋糕","果乾",100],["dessert",48,"魔法豬日式脆皮雞蛋糕","棉花糖1支",20],["dessert",48,"魔法豬日式脆皮雞蛋糕","棉花糖1杯",60],["dessert",48,"魔法豬日式脆皮雞蛋糕","圓型星空糖",50],["dessert",48,"魔法豬日式脆皮雞蛋糕","古早味畫糖",50],["dessert",48,"魔法豬日式脆皮雞蛋糕","美人魚尾巴星空糖",80],["drink",48,"魔法豬日式脆皮雞蛋糕","果醋",30],["side",49,"童心排骨酥","排骨酥(無骨/小)",100],["side",49,"童心排骨酥","排骨酥(無骨/中)",200],["side",49,"童心排骨酥","排骨酥(無骨/大)",300],["side",49,"童心排骨酥","雞腿酥(無骨/小)",100],["side",49,"童心排骨酥","雞腿酥(無骨/中)",200],["side",49,"童心排骨酥","雞腿酥(無骨/大)",300],["side",49,"童心排骨酥","酥炸鬼頭刀(無刺)",50],["side",49,"童心排骨酥","干貝酥(一隻)",40],["side",49,"童心排骨酥","干貝酥(三隻)",100],["side",49,"童心排骨酥","花枝丸 (一串)",40],["side",49,"童心排骨酥","花枝丸 (三串)",100],["side",49,"童心排骨酥","熱狗棒 (一隻)",40],["side",49,"童心排骨酥","熱狗棒 (三隻)",100],["side",49,"童心排骨酥","薯條",50],["drink",49,"童心排骨酥","古早味紅茶冰",50],["main",50,"中佈號","日式炒麵堡",115],["main",50,"中佈號","照燒烤飯糰",70],["main",50,"中佈號","酸甜芥末烤飯糰",50],["main",50,"中佈號","日式炒麵",100],["drink",51,"嘉南羊奶","原味",42],["drink",51,"嘉南羊奶","麥芽調味",42],["drink",51,"嘉南羊奶","巧克力調味",42],["drink",51,"嘉南羊奶","草莓調味",42],["drink",51,"嘉南羊奶","加糖調味",42],["drink",51,"嘉南羊奶","卵磷脂調味",42],["drink",51,"嘉南羊奶","低脂",45],["drink",51,"嘉南羊奶","燕麥堅果調味",45],["drink",51,"嘉南羊奶","原味優酪乳",45],["drink",51,"嘉南羊奶","草莓優酪乳",45],["dessert",52,"無名地瓜球","梅粉(小)",40],["dessert",52,"無名地瓜球","梅粉(大)",60],["dessert",52,"無名地瓜球","花生粉(小)",40],["dessert",52,"無名地瓜球","花生粉(大)",60],["dessert",52,"無名地瓜球","巧克力粉(小)",40],["dessert",52,"無名地瓜球","巧克力粉(大)",60],["dessert",52,"無名地瓜球","煉乳(小)",45],["dessert",52,"無名地瓜球","煉乳(大)",65],["dessert",53,"木飯","日式五平餅",50],["main",53,"木飯","招牌滷肉飯",50],["dessert",53,"木飯","日式烤麻糬 - 煉乳",50],["dessert",53,"木飯","日式烤麻糬 - 可可",50],["dessert",53,"木飯","日式烤麻糬 - 蜂蜜",50],["dessert",53,"木飯","日式烤麻糬 - 花生煉乳",60],["dessert",53,"木飯","日式烤麻糬 - 可可脆脆",60]];
+let MENU = EMBEDDED;
+const GROUP_LABEL = {main:"主餐", side:"小吃", dessert:"甜點", drink:"飲料"};
+const COLORS = ["#d2402b","#e98a15","#e2b714","#4aa35a","#2a9d8f","#3d7fd1","#7b5ec7","#c2468f"];
+const DARK_TEXT = new Set(["#e2b714","#e98a15"]);
+const SEGMENTS = 8;
+
+const $ = id => document.getElementById(id);
+const canvas = $("wheel"), ctx = canvas.getContext("2d");
+const state = {mode:"single", groups:new Set(["main","side","dessert","drink"]), max:150, budget:200, avoid:[], slice:[], rot:0, busy:false, history:[]};
+$("total").textContent = MENU.length;
+
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+const shuffle = a => { a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+const okAvoid = m => !state.avoid.some(a => (m[3]+m[2]).toLowerCase().includes(a));
+
+function pool(){
+  const cap = state.mode==="set" ? state.budget : state.max;
+  const gs = state.mode==="set" ? new Set(["main","side","dessert","drink"]) : state.groups;
+  return MENU.filter(m => gs.has(m[0]) && m[4] <= cap && okAvoid(m));
+}
+
+function diverse(p, n){
+  const out=[], used=new Set();
+  for(const m of p){ if(out.length>=n) break; if(!used.has(m[1])){ out.push(m); used.add(m[1]); } }
+  for(const m of p){ if(out.length>=n) break; if(!out.includes(m)) out.push(m); }
+  return out;
+}
+
+function pickSlice(){
+  const p = pool();
+  state.slice = diverse(shuffle(p), SEGMENTS);
+  $("count").textContent = "符合條件 " + p.length + " 個品項" + (p.length ? "，轉盤上放 " + state.slice.length + " 個。" : "，請放寬條件。");
+  $("stageLabel").innerHTML = "&nbsp;";
+  draw();
+}
+
+function short(s,n){ const a=[...s]; return a.length>n ? a.slice(0,n-1).join("")+"…" : s; }
+
+function draw(){
+  const W=canvas.width, C=W/2, R=C-22;
+  ctx.clearRect(0,0,W,W);
+  const n = state.slice.length;
+  if(!n){
+    ctx.fillStyle = cssVar("--chip"); ctx.beginPath(); ctx.arc(C,C,R,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = cssVar("--muted"); ctx.font = "700 40px "+cssVar("--font"); ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText("沒有符合的品項", C, C-110); return;
+  }
+  const seg = Math.PI*2/n;
+  ctx.save(); ctx.translate(C,C); ctx.rotate(state.rot);
+  for(let i=0;i<n;i++){
+    const a0 = -Math.PI/2 + i*seg, a1 = a0+seg, col = COLORS[i%COLORS.length];
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,R,a0,a1); ctx.closePath();
+    ctx.fillStyle = col; ctx.fill();
+    ctx.strokeStyle = cssVar("--surface"); ctx.lineWidth = 4; ctx.stroke();
+    ctx.save(); ctx.rotate(a0+seg/2); ctx.textAlign="right"; ctx.textBaseline="middle";
+    ctx.fillStyle = DARK_TEXT.has(col) ? "#1b1f2e" : "#ffffff";
+    ctx.font = "700 38px "+cssVar("--font");
+    ctx.fillText(short(state.slice[i][3].replace(/\s*[A-Z][A-Z ]{3,}$/,""), 7), R-30, 0);
+    ctx.restore();
+  }
+  ctx.restore();
+  ctx.lineWidth = 12; ctx.strokeStyle = cssVar("--rim"); ctx.beginPath(); ctx.arc(C,C,R,0,Math.PI*2); ctx.stroke();
+}
+
+const ease = t => 1 - Math.pow(1-t, 4);
+const reduce = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function spinTo(idx, dur){
+  return new Promise(resolve => {
+    const n = state.slice.length, seg = Math.PI*2/n;
+    const mid = idx*seg + seg/2, jitter = (Math.random()-.5)*seg*.7;
+    const cur = ((state.rot % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+    let delta = ((-(mid+jitter)) - cur) % (Math.PI*2); if(delta<0) delta += Math.PI*2;
+    const r = reduce();
+    const total = delta + Math.PI*2*(r ? 1 : 4), start = state.rot, d = r ? 600 : dur, t0 = performance.now();
+    (function step(now){
+      const t = Math.min(1,(now-t0)/d);
+      state.rot = start + total*ease(t); draw();
+      if(t<1) requestAnimationFrame(step); else resolve();
+    })(t0);
+  });
+}
+
+function remember(text, price){
+  state.history.unshift([text, price]); state.history = state.history.slice(0,6);
+  $("hist").innerHTML = "";
+  state.history.forEach(h => {
+    const li=document.createElement("li"), a=document.createElement("span"), b=document.createElement("span");
+    a.textContent = h[0]; b.textContent = h[1] + " 元"; li.append(a,b); $("hist").append(li);
+  });
+}
+
+function showSingle(m){
+  $("result").innerHTML = '<span class="label">結果</span><span class="tag">'+GROUP_LABEL[m[0]]+'</span>'+
+    '<h2></h2><div class="meta"></div><div class="price">'+m[4]+' 元</div>'+
+    '<div class="btns"><button class="btn primary" id="again" type="button">再轉一次</button></div>';
+  $("result").querySelector("h2").textContent = m[3];
+  $("result").querySelector(".meta").textContent = "店家" + m[1] + "｜" + m[2];
+  $("again").addEventListener("click", run);
+  remember(m[3] + "（" + m[2] + "）", m[4]);
+}
+
+function showSet(combo){
+  const total = combo.reduce((s,m)=>s+m[4],0);
+  const box = $("result");
+  box.innerHTML = '<span class="label">今晚的套餐</span><div class="rows"></div>'+
+    '<div class="price" id="sum"></div><div class="btns"><button class="btn primary" id="again" type="button">再轉一份套餐</button></div>';
+  const rows = box.querySelector(".rows");
+  combo.forEach(m => {
+    const r=document.createElement("div"); r.className="r";
+    const t=document.createElement("span"); t.className="tag"; t.textContent=GROUP_LABEL[m[0]];
+    const mid=document.createElement("div"), b=document.createElement("b"), s=document.createElement("small");
+    b.textContent=m[3]; s.textContent="店家"+m[1]+"｜"+m[2]; mid.append(b,s);
+    const p=document.createElement("span"); p.className="p"; p.textContent=m[4]+" 元";
+    r.append(t,mid,p); rows.append(r);
+  });
+  $("sum").textContent = "合計 " + total + " 元（預算 " + state.budget + " 元內）";
+  $("again").addEventListener("click", run);
+  remember("套餐：" + combo.map(m=>short(m[3].replace(/\s*[A-Z][A-Z ]{3,}$/,""),6)).join(" ＋ "), total);
+}
+
+function buildCombo(){
+  const base = MENU.filter(m => m[4] <= state.budget && okAvoid(m));
+  const slots = [
+    base.filter(m => m[0]==="main"),
+    base.filter(m => m[0]==="side" || m[0]==="dessert"),
+    base.filter(m => m[0]==="drink")
+  ];
+  if(slots.some(s => !s.length)) return null;
+  const found=[];
+  for(let t=0;t<4000 && found.length<60;t++){
+    const c = slots.map(s => s[Math.floor(Math.random()*s.length)]);
+    if(new Set(c.map(m=>m[1])).size<3) continue;
+    const sum = c.reduce((a,m)=>a+m[4],0);
+    if(sum<=state.budget) found.push({c,sum});
+  }
+  if(!found.length) return null;
+  const good = found.filter(f => f.sum >= state.budget*0.75);
+  const chosen = good.length ? good[Math.floor(Math.random()*good.length)] : found.sort((a,b)=>b.sum-a.sum)[0];
+  return {combo: chosen.c, slots};
+}
+
+async function runSet(){
+  const r = buildCombo();
+  if(!r){
+    $("result").innerHTML = '<span class="label">結果</span><p class="empty">這個預算湊不出套餐，請調高預算或減少「不要出現」的字。</p>';
+    return;
+  }
+  const names = ["第 1 轉：主餐","第 2 轉：小吃或甜點","第 3 轉：飲料"];
+  $("result").innerHTML = '<span class="label">結果</span><p class="empty">轉盤進行中…</p>';
+  for(let i=0;i<3;i++){
+    const pick = r.combo[i];
+    const others = diverse(shuffle(r.slots[i].filter(m => m!==pick)), SEGMENTS-1);
+    const arr = shuffle(others.concat([pick]));
+    state.slice = arr; $("stageLabel").textContent = names[i]; draw();
+    await spinTo(arr.indexOf(pick), 2800);
+    await new Promise(res => setTimeout(res, reduce() ? 100 : 450));
+  }
+  $("stageLabel").textContent = "套餐完成！";
+  showSet(r.combo);
+}
+
+async function run(){
+  if(state.busy) return;
+  state.busy = true; $("spin").disabled = true;
+  try{
+    if(state.mode==="set") await runSet();
+    else if(state.slice.length){
+      const idx = Math.floor(Math.random()*state.slice.length);
+      await spinTo(idx, 4600); showSingle(state.slice[idx]);
+    }
+  } finally { state.busy=false; $("spin").disabled=false; }
+}
+
+function refresh(){ if(!state.busy) pickSlice(); }
+$("spin").addEventListener("click", run);
+$("reshuffle").addEventListener("click", refresh);
+document.querySelectorAll("#modes .chip").forEach(b => b.addEventListener("click", () => {
+  if(state.busy) return;
+  state.mode = b.dataset.mode;
+  document.querySelectorAll("#modes .chip").forEach(x => x.setAttribute("aria-pressed", String(x===b)));
+  $("singleOpts").hidden = state.mode==="set"; $("setOpts").hidden = state.mode!=="set";
+  $("result").innerHTML = '<span class="label">結果</span><p class="empty">按中間的「轉！」開始。</p>';
+  pickSlice();
+}));
+document.querySelectorAll("#groups .chip").forEach(b => b.addEventListener("click", () => {
+  const g=b.dataset.g, on=b.getAttribute("aria-pressed")==="true";
+  if(on && state.groups.size===1) return;
+  on ? state.groups.delete(g) : state.groups.add(g);
+  b.setAttribute("aria-pressed", String(!on)); refresh();
+}));
+$("price").addEventListener("input", e => { state.max=+e.target.value; $("priceOut").textContent = state.max+" 元"; refresh(); });
+$("budget").addEventListener("input", e => { state.budget=+e.target.value; $("budgetOut").textContent = state.budget+" 元"; refresh(); });
+$("avoid").addEventListener("input", e => {
+  state.avoid = e.target.value.split(/[,，、\s]+/).map(s=>s.trim().toLowerCase()).filter(Boolean); refresh();
+});
+
+// ── 菜單載入：優先讀同資料夾的 menu.csv（換菜單只要換這個檔），讀不到才用內建版本 ──
+const CAT = {"主餐":"main","主食":"main","main course":"main","staple food":"main",
+             "副餐":"side","副食":"side","side dish":"side","side meal":"side",
+             "甜點":"dessert","dessert":"dessert","飲料":"drink","beverage":"drink"};
+function parseCSV(text){
+  const rows=[]; let row=[], cell="", q=false;
+  text = text.replace(/^\uFEFF/,"");
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){cell+='"';i++} else q=false } else cell+=c }
+    else if(c==='"') q=true;
+    else if(c===","){ row.push(cell); cell=""; }
+    else if(c==="\n"||c==="\r"){ if(c==="\r"&&text[i+1]==="\n") i++; row.push(cell); cell=""; if(row.some(x=>x.trim()))rows.push(row); row=[]; }
+    else cell+=c;
+  }
+  row.push(cell); if(row.some(x=>x.trim())) rows.push(row);
+  return rows;
+}
+function menuFromCSV(text){
+  const out=[];
+  for(const r of parseCSV(text)){
+    if(r.length<5) continue;
+    const g=CAT[(r[0]||"").trim().toLowerCase()], pm=(r[4]||"").match(/\d+/), nm=(r[1]||"").match(/\d+/);
+    if(!g||!pm||!nm) continue;
+    const item=(r[3]||"").replace(/\s+/g," ").trim(), price=+pm[0];
+    if(item.includes("加料")||/add-on/i.test(item)||price<15) continue;
+    out.push([g,+nm[0],(r[2]||"").trim(),item,price]);
+  }
+  return out;
+}
+function useMenu(list, source){
+  if(!list.length) return false;
+  MENU = list; $("total").textContent = MENU.length;
+  $("stores").textContent = new Set(MENU.map(m=>m[1])).size;
+  $("src").textContent = source;
+  if(!state.busy) pickSlice();
+  return true;
+}
+async function loadMenu(){
+  try{
+    const res = await fetch("menu.csv?t="+Date.now(), {cache:"no-store"});
+    if(res.ok && useMenu(menuFromCSV(await res.text()), "menu.csv（同資料夾，開啟時讀取）")) return;
+  }catch(e){}
+  $("src").textContent = "內建菜單（找不到 menu.csv）";
+}
+$("csvFile").addEventListener("change", async e => {
+  const f=e.target.files[0]; if(!f) return;
+  const ok = useMenu(menuFromCSV(await f.text()), "你選的檔案：" + f.name);
+  if(!ok) $("src").textContent = "這個檔案讀不到品項（需要 5 欄：類別、店號、店名、品名、價格）";
+  e.target.value="";
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", draw);
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+pickSlice();
+loadMenu();
+$("admin").hidden = location.hash !== "#admin";   // 只有網址尾巴加 #admin 才顯示菜單來源與換檔按鈕
+</script>
+</body></html>
